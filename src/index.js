@@ -17,7 +17,6 @@ import devolucionesRouter from './routes/devoluciones.js';
 import usuariosRouter from './routes/usuarios.js';
 import authRouter from './routes/auth.js';
 import cuentasProveedoresRouter from './routes/cuentasProveedores.js';
-import lienzoCharroRouter from './routes/lienzoCharro.js';
 
 dotenv.config();
 
@@ -43,7 +42,6 @@ app.use('/api/adelantos', adelantosRouter);
 app.use('/api/devoluciones', devolucionesRouter);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/auth', authRouter);
-app.use('/api/lienzo-charro', lienzoCharroRouter);
 
 conectarMongo()
   .then(() => {

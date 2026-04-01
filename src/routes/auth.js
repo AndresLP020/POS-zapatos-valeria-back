@@ -8,7 +8,7 @@ const LOGIN_USER = (process.env.LOGIN_USER || 'admin').trim().toLowerCase();
 const LOGIN_PASSWORD = (process.env.LOGIN_PASSWORD || 'admin123').trim();
 
 // Contraseña de administrador (modo admin en dashboard). En producción definir ADMIN_PASSWORD en .env
-const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' ? '' : 'admin')).trim();
+const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' ? '' : 'domking123')).trim();
 
 router.post('/login', (req, res) => {
   const { usuario, password } = req.body || {};
