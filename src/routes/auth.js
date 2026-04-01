@@ -3,9 +3,9 @@ import { Router } from 'express';
 const router = Router();
 
 // Credenciales de acceso al sistema (página de login). En producción definir en Render:
-// LOGIN_USER y LOGIN_PASSWORD. Por defecto: admin / juanmejia123
+// LOGIN_USER y LOGIN_PASSWORD. Por defecto: admin / admin123
 const LOGIN_USER = (process.env.LOGIN_USER || 'admin').trim().toLowerCase();
-const LOGIN_PASSWORD = (process.env.LOGIN_PASSWORD || 'juanmejia123').trim();
+const LOGIN_PASSWORD = (process.env.LOGIN_PASSWORD || 'admin123').trim();
 
 // Contraseña de administrador (modo admin en dashboard). En producción definir ADMIN_PASSWORD en .env
 const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' ? '' : 'admin')).trim();

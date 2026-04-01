@@ -10,7 +10,6 @@ const schema = new mongoose.Schema({
   stock: Number,
   stockMinimo: Number,
   estado: { type: String, default: 'Activo' },
-  esGranel: { type: Boolean, default: false },
   proveedorId: Number,
 });
 

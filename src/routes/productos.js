@@ -4,6 +4,7 @@ import { Producto } from '../models/Producto.js';
 
 const router = Router();
 const redondear2 = (n) => Math.round(Number(n) * 100) / 100;
+const stockEntero = (n) => Math.max(0, Math.floor(Number(n) || 0));
 
 router.get('/', async (req, res) => {
   try {
@@ -38,7 +39,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { nombre, codigo, categoria, precio, costo, stock, stockMinimo, estado, esGranel, proveedorId } = req.body;
+    const { nombre, codigo, categoria, precio, costo, stock, stockMinimo, estado, proveedorId } = req.body;
     const id = await getNextId(Producto);
     const nuevo = await Producto.create({
       id,
@@ -47,10 +48,9 @@ router.post('/', async (req, res) => {
       categoria,
       precio: redondear2(precio) || 0,
       costo: redondear2(costo) || 0,
-      stock: Number(stock) || 0,
-      stockMinimo: Number(stockMinimo) || 0,
+      stock: stockEntero(stock),
+      stockMinimo: stockMinimo != null ? stockEntero(stockMinimo) : 0,
       estado: estado || 'Activo',
-      esGranel: Boolean(esGranel),
       proveedorId: proveedorId != null ? Number(proveedorId) : undefined,
     });
     res.status(201).json(nuevo.toObject());
@@ -63,16 +63,15 @@ router.put('/:id', async (req, res) => {
   try {
     const doc = await Producto.findOne({ id: Number(req.params.id) });
     if (!doc) return res.status(404).json({ error: 'Producto no encontrado' });
-    const { nombre, codigo, categoria, precio, costo, stock, stockMinimo, estado, esGranel, proveedorId } = req.body;
+    const { nombre, codigo, categoria, precio, costo, stock, stockMinimo, estado, proveedorId } = req.body;
     if (nombre != null) doc.nombre = nombre;
     if (codigo != null) doc.codigo = codigo;
     if (categoria != null) doc.categoria = categoria;
     if (precio != null) doc.precio = redondear2(precio);
     if (costo != null) doc.costo = redondear2(costo);
-    if (stock != null) doc.stock = Number(stock);
-    if (stockMinimo != null) doc.stockMinimo = Number(stockMinimo);
+    if (stock != null) doc.stock = stockEntero(stock);
+    if (stockMinimo != null) doc.stockMinimo = stockEntero(stockMinimo);
     if (estado != null) doc.estado = estado;
-    if (esGranel != null) doc.esGranel = Boolean(esGranel);
     if (proveedorId !== undefined) doc.proveedorId = proveedorId != null ? Number(proveedorId) : null;
     await doc.save();
     res.json(doc.toObject());
