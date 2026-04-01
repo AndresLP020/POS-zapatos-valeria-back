@@ -23,7 +23,29 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors({ origin: process.env.FRONT_URL || 'http://localhost:3000' }));
+const FRONT_URL = process.env.FRONT_URL?.trim();
+const FRONT_URLS = (process.env.FRONT_URLS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+const allowedOrigins = [FRONT_URL, ...FRONT_URLS, 'http://localhost:3000'].filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Requests sin Origin (health checks/server-to-server)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+
+      // Soporte para previews de Vercel: https://*.vercel.app
+      if (/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.vercel\.app$/i.test(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('Origen no permitido por CORS'));
+    },
+  })
+);
 app.use(express.json());
 
 app.get('/api/health', (_, res) => res.json({ ok: true, message: 'POS API' }));
