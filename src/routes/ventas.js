@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getNextId } from '../db.js';
 import { Venta } from '../models/Venta.js';
 import { Producto } from '../models/Producto.js';
+import { registrarAuditoria } from '../lib/auditoria.js';
 
 const router = Router();
 
@@ -16,9 +17,13 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { items, total, cliente, clienteId, pagado } = req.body;
+    const { items, total, cliente, clienteId, pagado, vendedorId, vendedorNombre } = req.body;
     const totalVenta = Number(total) || 0;
-    const pagadoVenta = Number(pagado) ?? totalVenta;
+    const pagadoVenta = Number.isFinite(Number(pagado)) ? Number(pagado) : totalVenta;
+    const pendienteVenta = Math.max(0, totalVenta - pagadoVenta);
+    if (pendienteVenta > 0 && !clienteId) {
+      return res.status(400).json({ error: 'Para registrar una venta a crédito debes seleccionar un cliente' });
+    }
     const itemsConCosto = (items || []).map((it) => ({
       id: it.id,
       nombre: it.nombre,
@@ -33,10 +38,12 @@ router.post('/', async (req, res) => {
       items: itemsConCosto,
       total: totalVenta,
       pagado: pagadoVenta,
-      pendiente: totalVenta - pagadoVenta,
+      pendiente: pendienteVenta,
       cliente: cliente || '',
       clienteId: clienteId ? Number(clienteId) : null,
-      estado: pagadoVenta >= totalVenta ? 'pagado' : 'pendiente',
+      estado: pendienteVenta > 0 ? 'pendiente' : 'pagado',
+      vendedorId: vendedorId != null ? Number(vendedorId) : undefined,
+      vendedorNombre: vendedorNombre ? String(vendedorNombre) : '',
     });
     // Descontar stock de cada producto en la base de datos
     for (const it of itemsConCosto) {
@@ -45,6 +52,21 @@ router.post('/', async (req, res) => {
         { $inc: { stock: -it.cantidad } }
       );
     }
+    await registrarAuditoria({
+      tipo: 'venta',
+      modulo: 'ventas',
+      descripcion: `Venta #${venta.id} registrada por ${venta.vendedorNombre || 'sin vendedor'}`,
+      usuarioId: venta.vendedorId,
+      usuarioNombre: venta.vendedorNombre || undefined,
+      metadata: {
+        ventaId: venta.id,
+        total: venta.total,
+        pagado: venta.pagado,
+        pendiente: venta.pendiente,
+        clienteId: venta.clienteId ?? null,
+        cliente: venta.cliente || '',
+      },
+    });
     res.status(201).json(venta.toObject());
   } catch (err) {
     res.status(500).json({ error: err.message });

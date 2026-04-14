@@ -13,6 +13,7 @@ const schema = new mongoose.Schema({
   password: { type: String, required: true },
   nombre: String,
   telefono: String,
+  rol: { type: String, enum: ['trabajador', 'bodega'], default: 'trabajador' },
   permisos: permisosSchema,
 });
 

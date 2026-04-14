@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getNextId } from '../db.js';
 import { Producto } from '../models/Producto.js';
+import { generarSiguienteCodigoBarrasEAN13 } from '../lib/codigoBarras.js';
 
 const router = Router();
 const redondear2 = (n) => Math.round(Number(n) * 100) / 100;
@@ -27,6 +28,20 @@ router.get('/codigo/:codigo', async (req, res) => {
   }
 });
 
+/** Siguiente código EAN-13 único (vista previa antes de guardar o regenerar en edición). */
+router.get('/siguiente-codigo-barras', async (req, res) => {
+  try {
+    const exclude =
+      req.query.excludeProductId != null && req.query.excludeProductId !== ''
+        ? Number(req.query.excludeProductId)
+        : null;
+    const codigo = await generarSiguienteCodigoBarrasEAN13(Producto, getNextId, exclude);
+    res.json({ codigo });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const p = await Producto.findOne({ id: Number(req.params.id) }).lean();
@@ -40,15 +55,21 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { nombre, codigo, categoria, precio, costo, stock, stockMinimo, estado, proveedorId } = req.body;
+    const codigoTrim = codigo != null && String(codigo).trim() ? String(codigo).trim() : '';
+    if (codigoTrim) {
+      const duplicado = await Producto.findOne({ codigo: codigoTrim }).lean();
+      if (duplicado) return res.status(409).json({ error: 'Ya existe un producto con ese código de barras' });
+    }
     const id = await getNextId(Producto);
     const nuevo = await Producto.create({
       id,
       nombre,
-      codigo: codigo || String(id).padStart(10, '0'),
+      codigo: codigoTrim || String(id).padStart(10, '0'),
       categoria,
       precio: redondear2(precio) || 0,
       costo: redondear2(costo) || 0,
       stock: stockEntero(stock),
+      stockBodega: 0,
       stockMinimo: stockMinimo != null ? stockEntero(stockMinimo) : 0,
       estado: estado || 'Activo',
       proveedorId: proveedorId != null ? Number(proveedorId) : undefined,
@@ -61,11 +82,19 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const doc = await Producto.findOne({ id: Number(req.params.id) });
+    const pid = Number(req.params.id);
+    const doc = await Producto.findOne({ id: pid });
     if (!doc) return res.status(404).json({ error: 'Producto no encontrado' });
     const { nombre, codigo, categoria, precio, costo, stock, stockMinimo, estado, proveedorId } = req.body;
     if (nombre != null) doc.nombre = nombre;
-    if (codigo != null) doc.codigo = codigo;
+    if (codigo != null) {
+      const c = String(codigo).trim();
+      if (c) {
+        const duplicado = await Producto.findOne({ codigo: c, id: { $ne: pid } }).lean();
+        if (duplicado) return res.status(409).json({ error: 'Ya existe otro producto con ese código de barras' });
+      }
+      doc.codigo = c;
+    }
     if (categoria != null) doc.categoria = categoria;
     if (precio != null) doc.precio = redondear2(precio);
     if (costo != null) doc.costo = redondear2(costo);

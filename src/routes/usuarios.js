@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getNextId } from '../db.js';
 import { Usuario } from '../models/Usuario.js';
+import { registrarAuditoria } from '../lib/auditoria.js';
 
 const router = Router();
 
@@ -27,6 +28,7 @@ function toResponse(u) {
     email: u.email,
     nombre: u.nombre,
     telefono: u.telefono,
+    rol: u.rol || 'trabajador',
     permisos: normalizarPermisos(u.permisos),
   };
 }
@@ -52,7 +54,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { email, password, nombre, telefono, permisos } = req.body;
+    const { email, password, nombre, telefono, rol, permisos } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email y contraseña son requeridos' });
     const existe = await Usuario.findOne({ email: String(email).trim().toLowerCase() });
     if (existe) return res.status(400).json({ error: 'Ya existe un usuario con ese correo' });
@@ -63,12 +65,19 @@ router.post('/', async (req, res) => {
       password: String(password),
       nombre: nombre || '',
       telefono: telefono || '',
+      rol: rol === 'bodega' ? 'bodega' : 'trabajador',
       permisos: {
         hacerVentas: permisos?.hacerVentas !== false,
         darDeBajaProductos: permisos?.darDeBajaProductos === true,
         actualizarProductos: permisos?.actualizarProductos !== false,
         borrarProductos: permisos?.borrarProductos === true,
       },
+    });
+    await registrarAuditoria({
+      tipo: 'usuario_alta',
+      modulo: 'usuarios',
+      descripcion: `Se creó el usuario ${usuario.email}`,
+      metadata: { usuarioId: usuario.id, email: usuario.email, nombre: usuario.nombre || '' },
     });
     res.status(201).json(toResponse(usuario.toObject()));
   } catch (err) {
@@ -80,11 +89,12 @@ router.put('/:id', async (req, res) => {
   try {
     const doc = await Usuario.findOne({ id: Number(req.params.id) });
     if (!doc) return res.status(404).json({ error: 'Usuario no encontrado' });
-    const { email, password, nombre, telefono, permisos } = req.body;
+    const { email, password, nombre, telefono, rol, permisos } = req.body;
     if (email != null) doc.email = String(email).trim().toLowerCase();
     if (password != null && String(password).length > 0) doc.password = String(password);
     if (nombre != null) doc.nombre = String(nombre);
     if (telefono != null) doc.telefono = String(telefono);
+    if (rol != null) doc.rol = rol === 'bodega' ? 'bodega' : 'trabajador';
     if (permisos != null) {
       doc.permisos = {
         hacerVentas: permisos.hacerVentas !== false,

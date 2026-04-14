@@ -8,6 +8,7 @@ const schema = new mongoose.Schema({
   precio: Number,
   costo: Number,
   stock: Number,
+  stockBodega: { type: Number, default: 0 },
   stockMinimo: Number,
   estado: { type: String, default: 'Activo' },
   proveedorId: Number,

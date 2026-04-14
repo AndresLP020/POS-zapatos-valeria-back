@@ -17,6 +17,8 @@ import devolucionesRouter from './routes/devoluciones.js';
 import usuariosRouter from './routes/usuarios.js';
 import authRouter from './routes/auth.js';
 import cuentasProveedoresRouter from './routes/cuentasProveedores.js';
+import inventarioUbicacionesRouter from './routes/inventarioUbicaciones.js';
+import auditoriaRouter from './routes/auditoria.js';
 
 dotenv.config();
 
@@ -64,6 +66,8 @@ app.use('/api/adelantos', adelantosRouter);
 app.use('/api/devoluciones', devolucionesRouter);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/inventario-ubicaciones', inventarioUbicacionesRouter);
+app.use('/api/auditoria', auditoriaRouter);
 
 conectarMongo()
   .then(() => {

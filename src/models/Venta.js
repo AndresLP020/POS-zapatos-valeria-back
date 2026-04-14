@@ -10,5 +10,7 @@ const schema = new mongoose.Schema({
   cliente: String,
   clienteId: Number,
   estado: String,
+  vendedorId: Number,
+  vendedorNombre: String,
 });
 export const Venta = mongoose.model('Venta', schema);
