@@ -7,6 +7,13 @@ const router = Router();
 const redondear2 = (n) => Math.round(Number(n) * 100) / 100;
 const stockEntero = (n) => Math.max(0, Math.floor(Number(n) || 0));
 
+/** Primera letra mayúscula (es), resto igual. */
+function normalizarNombreProducto(nombre) {
+  const t = String(nombre ?? '').trim();
+  if (!t) return '';
+  return t.charAt(0).toLocaleUpperCase('es') + t.slice(1);
+}
+
 router.get('/', async (req, res) => {
   try {
     const proveedorId = req.query.proveedorId != null ? Number(req.query.proveedorId) : null;
@@ -55,6 +62,8 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { nombre, codigo, categoria, precio, costo, stock, stockMinimo, estado, proveedorId } = req.body;
+    const nombreNorm = normalizarNombreProducto(nombre);
+    if (!nombreNorm) return res.status(400).json({ error: 'El nombre es obligatorio' });
     const codigoTrim = codigo != null && String(codigo).trim() ? String(codigo).trim() : '';
     if (codigoTrim) {
       const duplicado = await Producto.findOne({ codigo: codigoTrim }).lean();
@@ -63,7 +72,7 @@ router.post('/', async (req, res) => {
     const id = await getNextId(Producto);
     const nuevo = await Producto.create({
       id,
-      nombre,
+      nombre: nombreNorm,
       codigo: codigoTrim || String(id).padStart(10, '0'),
       categoria,
       precio: redondear2(precio) || 0,
@@ -86,7 +95,11 @@ router.put('/:id', async (req, res) => {
     const doc = await Producto.findOne({ id: pid });
     if (!doc) return res.status(404).json({ error: 'Producto no encontrado' });
     const { nombre, codigo, categoria, precio, costo, stock, stockMinimo, estado, proveedorId } = req.body;
-    if (nombre != null) doc.nombre = nombre;
+    if (nombre !== undefined && nombre !== null) {
+      const n = normalizarNombreProducto(nombre);
+      if (!n) return res.status(400).json({ error: 'El nombre no puede quedar vacío' });
+      doc.nombre = n;
+    }
     if (codigo != null) {
       const c = String(codigo).trim();
       if (c) {
