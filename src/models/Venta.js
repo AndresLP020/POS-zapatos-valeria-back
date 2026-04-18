@@ -12,5 +12,7 @@ const schema = new mongoose.Schema({
   estado: String,
   vendedorId: Number,
   vendedorNombre: String,
+  /** 'migracion' = deuda cargada manualmente (sin movimiento de inventario) */
+  origen: { type: String, required: false },
 });
 export const Venta = mongoose.model('Venta', schema);

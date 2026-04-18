@@ -2,9 +2,73 @@ import { Router } from 'express';
 import { getNextId } from '../db.js';
 import { Venta } from '../models/Venta.js';
 import { Producto } from '../models/Producto.js';
+import { Cliente } from '../models/Cliente.js';
 import { registrarAuditoria } from '../lib/auditoria.js';
 
 const router = Router();
+
+/** Deuda de libreta / migración: no afecta inventario. Solo cliente registrado y monto pendiente. */
+router.post('/deuda-migracion', async (req, res) => {
+  try {
+    const { clienteId, montoPendiente, descripcion, fecha, vendedorId, vendedorNombre } = req.body || {};
+    const cid = Number(clienteId);
+    if (!Number.isFinite(cid) || cid <= 0) {
+      return res.status(400).json({ error: 'Debes seleccionar un cliente válido' });
+    }
+    const monto = Number(montoPendiente);
+    if (!Number.isFinite(monto) || monto <= 0) {
+      return res.status(400).json({ error: 'El monto pendiente debe ser mayor a 0' });
+    }
+    const cliente = await Cliente.findOne({ id: cid }).lean();
+    if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+    const texto = (descripcion && String(descripcion).trim()) || 'Deuda anterior (migración desde libreta)';
+    let fechaIso;
+    if (fecha) {
+      const d = new Date(fecha);
+      if (Number.isNaN(d.getTime())) return res.status(400).json({ error: 'Fecha no válida' });
+      fechaIso = d.toISOString();
+    } else {
+      fechaIso = new Date().toISOString();
+    }
+
+    const id = await getNextId(Venta);
+    const items = [
+      {
+        id: -1,
+        nombre: texto,
+        precio: monto,
+        cantidad: 1,
+        costo: 0,
+      },
+    ];
+    const venta = await Venta.create({
+      id,
+      fecha: fechaIso,
+      items,
+      total: monto,
+      pagado: 0,
+      pendiente: monto,
+      cliente: cliente.nombre || '',
+      clienteId: cid,
+      estado: 'pendiente',
+      vendedorId: vendedorId != null ? Number(vendedorId) : undefined,
+      vendedorNombre: vendedorNombre ? String(vendedorNombre) : 'Migración deudas',
+      origen: 'migracion',
+    });
+    await registrarAuditoria({
+      tipo: 'venta',
+      modulo: 'ventas',
+      descripcion: `Deuda migración #${venta.id} — ${texto} — ${cliente.nombre}`,
+      usuarioId: venta.vendedorId,
+      usuarioNombre: venta.vendedorNombre || undefined,
+      metadata: { ventaId: venta.id, migracion: true, clienteId: cid, monto },
+    });
+    res.status(201).json(venta.toObject());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.get('/', async (req, res) => {
   try {
